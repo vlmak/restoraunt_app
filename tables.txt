@@ -1,0 +1,98 @@
+CREATE TABLE tables (
+    table_id SERIAL PRIMARY KEY,
+    capacity INT NOT NULL CHECK (capacity > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'free'
+        CHECK (status IN ('free', 'occupied', 'reserved', 'needs_cleaning')),
+    cleaning_started_at TIMESTAMP NULL
+);
+
+CREATE TABLE employees (
+    employee_id SERIAL PRIMARY KEY,
+    last_name VARCHAR(50) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'waiter', 'cook', 'purchasing_manager')),
+    phone VARCHAR(20) NOT NULL
+);
+
+CREATE TABLE suppliers (
+    supplier_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    contacts TEXT
+);
+
+CREATE TABLE reservations (
+    reservation_id SERIAL PRIMARY KEY,
+    table_id INT NOT NULL REFERENCES tables(table_id) ON DELETE CASCADE,
+    guest_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    reservation_time TIMESTAMP NOT NULL,
+    persons INT NOT NULL CHECK (persons > 0),
+    status VARCHAR(20) NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active', 'arrived', 'cancelled', 'no_show', 'completed'))
+);
+
+CREATE TABLE dishes (
+    dish_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    price DECIMAL(10,2) NOT NULL CHECK (price > 0),
+    category VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE ingredients (
+    ingredient_id SERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    unit VARCHAR(20) NOT NULL,
+    min_stock DECIMAL(10,3) NOT NULL DEFAULT 0,
+    current_stock DECIMAL(10,3) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE recipes (
+    dish_id INT NOT NULL REFERENCES dishes(dish_id) ON DELETE CASCADE,
+    ingredient_id INT NOT NULL REFERENCES ingredients(ingredient_id) ON DELETE CASCADE,
+    quantity_portion DECIMAL(10,3) NOT NULL CHECK (quantity_portion > 0),
+    PRIMARY KEY (dish_id, ingredient_id)
+);
+
+CREATE TABLE checks (
+    check_id SERIAL PRIMARY KEY,
+    table_id INT NOT NULL REFERENCES tables(table_id) ON DELETE CASCADE,
+    waiter_id INT NOT NULL REFERENCES employees(employee_id) ON DELETE CASCADE,
+    opened_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    closed_at TIMESTAMP NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'cancelled')),
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0
+);
+
+CREATE TABLE check_items (
+    check_item_id SERIAL PRIMARY KEY,
+    check_id INT NOT NULL REFERENCES checks(check_id) ON DELETE CASCADE,
+    dish_id INT NOT NULL REFERENCES dishes(dish_id) ON DELETE CASCADE,
+    price_at_moment DECIMAL(10,2) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'sent_to_kitchen', 'cooking', 'ready', 'served', 'cancelled', 'returned'))
+);
+
+CREATE TABLE supplier_orders (
+    order_id SERIAL PRIMARY KEY,
+    supplier_id INT NOT NULL REFERENCES suppliers(supplier_id) ON DELETE CASCADE,
+    order_date TIMESTAMP NOT NULL DEFAULT NOW(),
+    total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft', 'sent', 'received', 'cancelled'))
+);
+
+CREATE TABLE supplier_order_items (
+    order_item_id SERIAL PRIMARY KEY,
+    order_id INT NOT NULL REFERENCES supplier_orders(order_id) ON DELETE CASCADE,
+    ingredient_id INT NOT NULL REFERENCES ingredients(ingredient_id) ON DELETE CASCADE,
+    quantity DECIMAL(10,3) NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price > 0)
+);
+
+CREATE TABLE ingredient_movements (
+    movement_id SERIAL PRIMARY KEY,
+    ingredient_id INT NOT NULL REFERENCES ingredients(ingredient_id) ON DELETE CASCADE,
+    quantity DECIMAL(10,3) NOT NULL,
+    type VARCHAR(20) NOT NULL CHECK (type IN ('in', 'out')),
+    movement_datetime TIMESTAMP NOT NULL DEFAULT NOW()
+);
